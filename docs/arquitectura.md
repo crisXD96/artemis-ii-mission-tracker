@@ -122,11 +122,16 @@ Flujo de `app.ts`:
 
 - **No es mecánica orbital real.** La trayectoria es un spline por puntos elegidos a mano para que
   se vea convincente.
-- **Los waypoints y los eventos no están sincronizados.** En la trayectoria, la máxima
-  aproximación a la Luna ocurre en el waypoint de MET 478.020 s (`005:12:47:00`), mientras que el
-  evento y `getMissionPhase()` la ubican en 500.520 s (`005:19:02:00`). Por eso
-  `/api/telemetry/478020` reporta la fase "OBSERVACIÓN LUNAR" estando a ~11.400 km de la Luna.
-  Se corrige ajustando los MET de `WAYPOINTS` en `src/lib/trajectory.ts`.
-- **La velocidad sale de la geometría del spline**, no de la física, y puede tener saltos en los
-  cambios de segmento.
+- **La velocidad sale de la geometría del spline**, no de la física, y salta en los cambios de
+  segmento: en el sobrevuelo llega a ~65.000 km/h entre la máxima aproximación y la distancia
+  máxima (hay 5 minutos entre los dos waypoints), y en el ascenso supera los 150.000 km/h.
+- **En la escena, el sobrevuelo no ocurre junto a la Luna.** La trayectoria se calcula con la
+  Luna fija en `(384.4, 0, 0)`, pero la escena la mueve en su órbita (~76° al día 5), así que Orion
+  rodea el punto donde estaba la Luna en T+0. La telemetría (`dist_moon`) sí es coherente con la
+  trayectoria.
+- **La máxima aproximación del spline cae ~5 minutos antes que el evento** (`005:18:56:45`), porque
+  la curva se dobla hacia la Luna antes de pasar por el waypoint.
+- **La distancia máxima a la Tierra es ~393.000 km**, no los 406.732 km del evento: con la Luna fija
+  a 384.400 km y el sobrevuelo a 6.545 km de altitud, la trayectoria no puede alejarse más sin
+  perder la máxima aproximación.
 - **Dependencia de CDN.** Sin internet el navegador no carga Three.js y la escena no aparece.
