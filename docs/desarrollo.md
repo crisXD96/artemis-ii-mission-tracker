@@ -23,7 +23,7 @@ Vitest corre `tests/**/*.test.ts` en entorno Node:
 | Archivo | Qué cubre |
 |---------|-----------|
 | `tests/orbital-math.test.ts` | Funciones de `src/lib/orbital-math.ts`: MET, distancias, interpolación, posición lunar y fases |
-| `tests/trajectory.test.ts` | Generación de la trayectoria: inicio y fin en la Tierra, MET creciente, paso cerca de la Luna, valores válidos e interpolación |
+| `tests/trajectory.test.ts` | Generación de la trayectoria: inicio y fin en la Tierra sin cruzarla, MET creciente, valores válidos, interpolación y sincronía con los eventos del sobrevuelo y la reentrada |
 
 El frontend no tiene tests automatizados; su red de seguridad es la compilación estricta
 (`npm run build:client`).
@@ -86,11 +86,13 @@ Los puntos de control están en `WAYPOINTS` (`src/lib/trajectory.ts`), cada uno 
 `[met_segundos, x, y, z]` en miles de km. Reglas:
 
 - El MET debe ser creciente.
-- El primer y el último punto deben quedar sobre la superficie terrestre (`z = EARTH_RADIUS_UNITS`).
-- Si mueves los waypoints del sobrevuelo lunar, revisa que coincidan con los MET de los eventos
-  (ver "Limitaciones conocidas" en [arquitectura.md](arquitectura.md)).
+- El primer y el último punto deben quedar sobre la superficie terrestre (a `EARTH_RADIUS_UNITS`
+  del origen), y ningún tramo debe cruzar la Tierra.
+- Los MET de los waypoints del sobrevuelo, de la separación del SM y de la reentrada deben
+  coincidir con los de sus eventos en `src/data/events.ts`.
 - Corre `npm test`: `tests/trajectory.test.ts` valida que el MET sea creciente, que la trayectoria
-  empiece y termine en la Tierra y que pase a menos de 30 unidades de la Luna.
+  empiece y termine en la Tierra sin cruzarla, y que la máxima aproximación a la Luna (~6.545 km) y
+  la distancia máxima a la Tierra caigan en el MET de sus eventos.
 
 ## Cargar datos reales de la NASA
 
