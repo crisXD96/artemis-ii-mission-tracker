@@ -4,14 +4,16 @@ El proyecto tiene dos partes que se comunican solo por HTTP:
 
 - **Backend** (`src/`): un servidor Express en TypeScript que genera la trayectoria, guarda los
   datos de la misión y los expone como JSON en `/api/*`. También sirve los archivos de `public/`.
-- **Frontend** (`public/`): HTML, CSS y JavaScript sin paso de build. Carga Three.js y Chart.js
-  desde CDN con un `importmap`, pide los datos a la API al arrancar y hace toda la simulación
-  visual en el navegador.
+- **Frontend**: el HTML y el CSS viven en `public/`; el código del navegador está en TypeScript en
+  `src/client/` y se compila a `dist/public/`. Carga Three.js y Chart.js desde CDN (Three con un
+  `importmap`), pide los datos a la API al arrancar y hace toda la simulación visual en el
+  navegador.
 
 ```
 Navegador                                  Servidor (Express)
 ──────────                                 ──────────────────
-index.html ──── GET /css, /js ───────────► express.static(public/)
+index.html ──── GET /, /css ─────────────► express.static(public/)
+           ──── GET /js/client/*.js ─────► express.static(dist/public/)   (compilado de src/client)
 app.js ─────── GET /api/trajectory ──────► routes/trajectory.ts ─► lib/trajectory.ts
        ─────── GET /api/events ──────────► routes/events.ts ─────► data/events.ts
        ─────── GET /api/crew ────────────► routes/crew.ts ───────► data/crew.ts
@@ -65,10 +67,21 @@ amerizaje. El frontend no lo usa: lleva su propio reloj con la línea de tiempo.
 |---------|-----------------|
 | `public/index.html` | Estructura de la página: canvas, HUD, guía, panel de eventos, tooltip de tripulación y línea de tiempo. |
 | `public/css/styles.css` | Tema visual (ver colores abajo) y diseño adaptable. |
-| `public/js/app.js` | Escena Three.js (estrellas, Tierra con atmósfera, Luna, Sol, Orion, impacto de meteorito), líneas de trayectoria, cámaras, HUD, panel de eventos, línea de tiempo y bucle de animación. |
-| `public/js/crew-dialogue.js` | Diálogo recreado por evento (las llaves son los `id` de `/api/events`) y el reproductor que lo va escribiendo en pantalla. |
+| `src/client/app.ts` | Escena Three.js (estrellas, Tierra con atmósfera, Luna, Sol, Orion, impacto de meteorito), líneas de trayectoria, cámaras, HUD, panel de eventos, línea de tiempo y bucle de animación. |
+| `src/client/crew-dialogue.ts` | Diálogo recreado por evento (las llaves son los `id` de `/api/events`) y el reproductor que lo va escribiendo en pantalla. Los hablantes están tipados, así que uno mal escrito no compila. |
 
-Flujo de `app.js`:
+### Compilación del cliente
+
+`tsconfig.client.json` compila `src/client/` con `lib: DOM` y modo estricto a `dist/public/client/`,
+y el servidor publica `dist/public/` en la ruta `/js`. El cliente importa los tipos de
+`src/types.ts` (`TrajectoryPoint`, `MissionEvent`, `CrewMember`), así que un cambio en la forma de
+la API se detecta al compilar los dos lados. Los imports de `three` se resuelven con
+`@types/three` al compilar y con el `importmap` del CDN en el navegador; las dos versiones deben
+coincidir (0.160).
+
+`tsconfig.json` excluye `src/client/` para que el build del servidor no compile código de navegador.
+
+Flujo de `app.ts`:
 
 1. `init()` crea la escena y pide `/api/trajectory`, `/api/events` y `/api/crew`.
 2. Con esos datos arma la línea de trayectoria, el panel de eventos, las bandas de fase, las marcas

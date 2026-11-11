@@ -4,11 +4,13 @@
 
 ```bash
 npm install
-npm run dev     # http://localhost:3000, se reinicia al guardar cambios en src/
+npm run dev          # compila el cliente y levanta http://localhost:3000
+npm run dev:client   # en otra terminal: recompila src/client/ al guardar
 ```
 
-`tsx watch` solo vigila el backend. Los cambios en `public/` no requieren reiniciar: basta con
-recargar el navegador.
+`tsx watch` reinicia el servidor cuando cambia el backend. Los cambios en el cliente
+(`src/client/`) los recompila `dev:client`, y los de `public/` (HTML y CSS) no necesitan nada: en
+los dos casos basta con recargar el navegador.
 
 ## Tests
 
@@ -23,18 +25,19 @@ Vitest corre `tests/**/*.test.ts` en entorno Node:
 | `tests/orbital-math.test.ts` | Funciones de `src/lib/orbital-math.ts`: MET, distancias, interpolación, posición lunar y fases |
 | `tests/trajectory.test.ts` | Generación de la trayectoria: inicio y fin en la Tierra, MET creciente, paso cerca de la Luna, valores válidos e interpolación |
 
-El frontend no tiene tests automatizados.
+El frontend no tiene tests automatizados; su red de seguridad es la compilación estricta
+(`npm run build:client`).
 
 ## Build de producción
 
 ```bash
-npm run build   # compila src/ a dist/
+npm run build   # compila el servidor a dist/ y el cliente a dist/public/
 npm start       # node dist/server.js
 ```
 
-`dist/` está en `.gitignore`. El servidor compilado sigue sirviendo `public/` desde la raíz del
-proyecto, así que en el despliegue hacen falta `dist/`, `public/`, `package.json` y las
-dependencias de producción (`npm ci --omit=dev`).
+`dist/` está en `.gitignore`. El servidor compilado sirve `public/` desde la raíz del proyecto y
+el cliente desde `dist/public/`, así que en el despliegue hacen falta `dist/`, `public/`,
+`package.json` y las dependencias de producción (`npm ci --omit=dev`).
 
 ## Flujo de trabajo con git
 
@@ -61,16 +64,16 @@ dependencias de producción (`npm ci --omit=dev`).
    ```
 
 2. Si quieres que la tripulación comente el evento, agrega una entrada con el mismo `id` en
-   `CREW_DIALOGUE` de `public/js/crew-dialogue.js`:
+   `CREW_DIALOGUE` de `src/client/crew-dialogue.ts`:
 
-   ```javascript
+   ```typescript
    'id-unico': [
      ['koch', 'Primera línea del diálogo.'],
      ['hansen', 'Respuesta.'],
    ],
    ```
 
-   Los hablantes válidos son `wiseman`, `glover`, `koch` y `hansen`.
+   Los hablantes válidos son `wiseman`, `glover`, `koch` y `hansen`; cualquier otro no compila.
 
 3. Si el evento abre una fase nueva, ajusta `getMissionPhase()` en `src/lib/orbital-math.ts` y sus
    tests.
@@ -96,7 +99,7 @@ Cuando la NASA publique las efemérides reales de Artemis II:
 1. Reemplaza `WAYPOINTS` en `src/lib/trajectory.ts` con los datos reales. Pasa de km a unidades de
    escena dividiendo entre 1.000.
 2. Actualiza los MET de `src/data/events.ts` con los tiempos reales de la misión.
-3. Agrega texturas reales en `public/js/app.js`: NASA Blue Marble (2048×1024) para la Tierra y el
+3. Agrega texturas reales en `src/client/app.ts`: NASA Blue Marble (2048×1024) para la Tierra y el
    mosaico global LRO WAC para la Luna, desde https://visibleearth.nasa.gov/.
 
 ## Convenciones de la escena 3D

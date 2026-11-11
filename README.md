@@ -37,9 +37,11 @@ Abre **http://localhost:3000** en el navegador.
 
 | Comando | Qué hace |
 |---------|----------|
-| `npm run dev` | Servidor de desarrollo con recarga automática (`tsx watch`) |
+| `npm run dev` | Compila el cliente y levanta el servidor con recarga automática (`tsx watch`) |
+| `npm run dev:client` | Recompila el cliente al guardar; córrelo en otra terminal mientras trabajas en `src/client/` |
 | `npm test` | Corre los tests con Vitest (53 tests) |
-| `npm run build` | Compila TypeScript a `dist/` |
+| `npm run build` | Compila servidor y cliente a `dist/` |
+| `npm run build:client` | Compila solo el cliente a `dist/public/` |
 | `npm start` | Corre la versión compilada (`node dist/server.js`); antes hay que correr `npm run build` |
 
 ### Cambiar el puerto
@@ -75,24 +77,26 @@ $env:PORT = 8080; npm run dev
 ## Estructura del proyecto
 
 ```
-├── src/                     # Backend (Express + TypeScript)
-│   ├── server.ts            # Servidor, archivos estáticos y rutas de la API
-│   ├── types.ts             # Interfaces compartidas
+├── src/                       # Todo el código, en TypeScript
+│   ├── server.ts              # Servidor, archivos estáticos y rutas de la API
+│   ├── types.ts               # Interfaces compartidas por servidor y cliente
 │   ├── lib/
-│   │   ├── orbital-math.ts  # MET, interpolación, distancias, fases de misión
-│   │   └── trajectory.ts    # Generador de trayectoria (spline Catmull-Rom)
+│   │   ├── orbital-math.ts    # MET, interpolación, distancias, fases de misión
+│   │   └── trajectory.ts      # Generador de trayectoria (spline Catmull-Rom)
 │   ├── data/
-│   │   ├── events.ts        # 26 eventos de la misión
-│   │   └── crew.ts          # Tripulación
-│   └── routes/              # Endpoints /api/*
-├── public/                  # Frontend estático (sin build)
+│   │   ├── events.ts          # 26 eventos de la misión
+│   │   └── crew.ts            # Tripulación
+│   ├── routes/                # Endpoints /api/*
+│   └── client/                # Código del navegador
+│       ├── app.ts             # Escena Three.js, HUD, línea de tiempo
+│       └── crew-dialogue.ts   # Diálogo recreado de la tripulación
+├── public/                    # HTML y CSS estáticos
 │   ├── index.html
-│   ├── css/styles.css
-│   └── js/
-│       ├── app.js           # Escena Three.js, HUD, línea de tiempo
-│       └── crew-dialogue.js # Diálogo recreado de la tripulación
-├── tests/                   # Tests de Vitest
-└── docs/                    # Documentación técnica
+│   └── css/styles.css
+├── tests/                     # Tests de Vitest
+├── docs/                      # Documentación técnica
+├── tsconfig.json              # Compilación del servidor
+└── tsconfig.client.json       # Compilación del cliente (a dist/public/)
 ```
 
 ## API
