@@ -2,6 +2,10 @@
  * Artemis II free-return trajectory generator.
  * Produces a smooth, visually convincing figure-8 path around Earth and Moon.
  * Units: 1 unit = 1000 km. Earth at origin (0,0,0). Moon at ~(384, 0, 0) at T+0.
+ *
+ * Los waypoints se definen en el marco que gira con la Luna (Luna fija en +X), donde el retorno
+ * libre es un 8; cada punto se rota al marco de la escena para que el sobrevuelo ocurra junto a
+ * la Luna en su órbita.
  */
 
 import {
@@ -17,10 +21,11 @@ import {
   getMissionPhase,
   formatMET,
   catmullRom,
+  fromMoonFrame,
 } from './orbital-math.js';
 
 // Control waypoints: [met_seconds, x, y, z]
-// Earth at (0,0,0), Moon fixed at (384.4, 0, 0) for trajectory definition
+// En el marco que gira con la Luna: Tierra en (0,0,0), Luna fija en (384.4, 0, 0)
 const WAYPOINTS: Array<[number, number, number, number]> = [
   // Launch and ascent
   [0,          0,      0,     EARTH_RADIUS_UNITS],  // T+0: Launch (KSC, Florida)
@@ -92,13 +97,10 @@ export function generateTrajectory(numPoints = 600): TrajectoryPoint[] {
       const pos = catmullRom(p0, p1, p2, p3, t);
       const met = metStart + (metEnd - metStart) * t;
 
-      const x = pos[0];
-      const y = pos[1];
-      const z = pos[2];
-
-      const dist_earth = distance3D(x, y, z, 0, 0, 0);
-      // Moon is fixed at (384.4, 0, 0) for trajectory definition
-      const dist_moon = distance3D(x, y, z, EARTH_MOON_DISTANCE, 0, 0);
+      // Las distancias se miden en el marco de la Luna; la rotación no las cambia
+      const dist_earth = distance3D(pos[0], pos[1], pos[2], 0, 0, 0);
+      const dist_moon = distance3D(pos[0], pos[1], pos[2], EARTH_MOON_DISTANCE, 0, 0);
+      const { x, y, z } = fromMoonFrame(pos[0], pos[1], pos[2], met);
       const phase = getMissionPhase(met);
 
       points.push({ met, x, y, z, dist_earth, dist_moon, velocity: 0, phase });
