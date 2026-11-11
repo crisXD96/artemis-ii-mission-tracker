@@ -1,0 +1,16 @@
+# Obligatorias por política de la organización (no eliminar)
+.secrets/
+*.env
+certs/
+prod.env
+
+# Dependencias y build
+node_modules/
+dist/
+
+# Configuración local de Claude Code
+.claude/settings.local.json
+
+# Sistema
+.DS_Store
+Thumbs.db

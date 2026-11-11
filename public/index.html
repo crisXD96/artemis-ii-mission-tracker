@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artemis II Seguimiento de Misión — NASA</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <!-- El canvas de Three.js ocupa el fondo -->
+  <canvas id="space-canvas"></canvas>
+
+  <!-- Columna izquierda: telemetría y guía apiladas para que la guía no tape la escena -->
+  <aside id="left-column">
+    <section id="hud" aria-label="Telemetría de Orion">
+      <div class="hud-met-label">Tiempo de misión</div>
+      <div id="hud-met" class="hud-met">T+ 000:00:00:00</div>
+      <dl class="hud-grid">
+        <dt>Distancia a la Tierra</dt><dd id="hud-dist-earth">6.371 km</dd>
+        <dt>Distancia a la Luna</dt><dd id="hud-dist-moon">384.400 km</dd>
+        <dt>Velocidad</dt><dd id="hud-velocity">0 km/h</dd>
+      </dl>
+      <div class="hud-phase-row">
+        <span class="hud-phase-label">Fase</span>
+        <span id="hud-phase" class="hud-phase">LANZAMIENTO</span>
+      </div>
+    </section>
+
+    <!-- Diálogo de la tripulación: en escritorio flota al centro sobre la línea de tiempo -->
+    <section id="comms" aria-labelledby="comms-title">
+      <header id="comms-header">
+        <h2 id="comms-title">En la cabina</h2>
+        <span class="comms-note">Diálogo recreado, no es una transcripción real</span>
+        <button id="comms-toggle" class="icon-btn" title="Ocultar diálogo" aria-label="Ocultar diálogo" aria-expanded="true">−</button>
+      </header>
+      <ol id="comms-log" aria-live="polite"></ol>
+    </section>
+
+    <section id="info-panel" aria-labelledby="info-title">
+      <header id="info-header">
+        <h2 id="info-title">Guía del simulador</h2>
+        <button id="info-close" class="icon-btn" title="Ocultar guía" aria-label="Ocultar guía">✕</button>
+      </header>
+      <div id="info-body">
+        <p class="info-intro">
+          Sigue la misión <strong>Artemis II</strong> de la NASA, lanzada el 1 de abril de 2026:
+          cuatro astronautas en el primer viaje tripulado a distancia lunar desde el Apollo 17,
+          sobre una trayectoria de retorno libre en figura de 8.
+        </p>
+
+        <div class="info-section">
+          <h3>Escena 3D</h3>
+          <ul class="info-list">
+            <li><span class="swatch swatch-earth"></span>Tierra, con atmósfera</li>
+            <li><span class="swatch swatch-moon"></span>Luna, en su órbita de 27,3 días</li>
+            <li><span class="swatch swatch-orion"></span>Orion, ampliada 500 veces para que se vea</li>
+            <li><span class="swatch-line swatch-done"></span>Trayecto recorrido</li>
+            <li><span class="swatch-line swatch-future"></span>Trayecto por recorrer</li>
+            <li><span class="swatch-line swatch-now"></span>Tramo actual</li>
+          </ul>
+        </div>
+
+        <div class="info-section">
+          <h3>Cámara</h3>
+          <dl class="info-keys">
+            <dt>Arrastrar</dt><dd>Girar la escena</dd>
+            <dt>Rueda</dt><dd>Acercar o alejar</dd>
+            <dt>Botón derecho</dt><dd>Desplazar la vista</dd>
+            <dt>Clic en Orion</dt><dd>Ver a la tripulación</dd>
+          </dl>
+        </div>
+
+        <div class="info-section">
+          <h3>Línea de tiempo</h3>
+          <dl class="info-keys">
+            <dt>▶&#xFE0E;</dt><dd>Reproducir o pausar</dd>
+            <dt>−12 h, +12 h</dt><dd>Saltar medio día</dd>
+            <dt>1× a 1000×</dt><dd>Velocidad de reproducción</dd>
+            <dt>Marca de evento</dt><dd>Ir a ese momento</dd>
+          </dl>
+        </div>
+
+        <p class="info-note">
+          1 unidad de la escena equivale a 1.000 km. La Luna está a 384.400 km
+          y la misión dura 9 días, 7 h y 10 min.
+        </p>
+      </div>
+    </section>
+
+    <button id="info-open-btn" title="Mostrar guía del simulador">Mostrar guía</button>
+  </aside>
+
+  <!-- Controles de cámara: esquina superior derecha -->
+  <nav id="camera-controls" aria-label="Vistas de cámara">
+    <button class="cam-btn" data-cam="earth" title="Vista de la Tierra" aria-label="Vista de la Tierra">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c-3 3-3 13 0 16M12 4c3 3 3 13 0 16"/></svg>
+    </button>
+    <button class="cam-btn" data-cam="moon" title="Vista de la Luna" aria-label="Vista de la Luna">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4a8 8 0 1 0 5 13A7 7 0 0 1 15 4z"/></svg>
+    </button>
+    <button class="cam-btn" data-cam="follow" title="Seguir a Orion" aria-label="Seguir a Orion">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M10.5 8h3l2 8h-7z"/></svg>
+    </button>
+    <button class="cam-btn" data-cam="overview" title="Vista general" aria-label="Vista general">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="12" rx="9.5" ry="4" transform="rotate(-28 12 12)" stroke-dasharray="2 2"/><circle cx="12" cy="12" r="2.5" fill="currentColor"/><circle cx="19.6" cy="7.6" r="1.4" fill="currentColor"/></svg>
+    </button>
+    <button class="cam-btn" data-cam="earthrise" title="Salida de la Tierra" aria-label="Salida de la Tierra">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17h18"/><path d="M6 17a6 6 0 0 1 12 0"/><path d="M2 21c6-3 14-3 20 0"/></svg>
+    </button>
+  </nav>
+
+  <!-- Panel de eventos: lateral derecho, plegable -->
+  <section id="events-panel" aria-labelledby="events-title">
+    <header id="events-header">
+      <h2 id="events-title">Eventos de la misión</h2>
+      <button id="events-toggle" class="icon-btn" title="Plegar panel" aria-label="Plegar panel de eventos">◀</button>
+    </header>
+    <div id="events-list"></div>
+  </section>
+
+  <!-- Pestaña para reabrir el panel de eventos (visible solo cuando está plegado) -->
+  <button id="events-reopen-tab" title="Mostrar eventos de la misión">Eventos</button>
+
+  <!-- Tooltip de tripulación -->
+  <div id="crew-tooltip" role="dialog" aria-labelledby="crew-title">
+    <h2 id="crew-title" class="crew-title">Tripulación de Orion</h2>
+    <div id="crew-list"></div>
+  </div>
+
+  <!-- Línea de tiempo: tira de plan de vuelo con fases, eventos y días -->
+  <div id="timeline-bar">
+    <div id="timeline-strip">
+      <div id="timeline-phases" aria-hidden="true"></div>
+      <div id="timeline-events-markers"></div>
+      <div id="timeline-track">
+        <input type="range" id="timeline-slider" min="0" max="803400" value="0" step="100" aria-label="Momento de la misión">
+      </div>
+      <div id="timeline-days" aria-hidden="true"></div>
+    </div>
+    <div id="timeline-controls">
+      <button id="btn-rewind" title="Retroceder 12 horas">−12 h</button>
+      <button id="btn-playpause" title="Reproducir" aria-label="Reproducir">▶&#xFE0E;</button>
+      <button id="btn-forward" title="Avanzar 12 horas">+12 h</button>
+      <select id="speed-select" title="Velocidad de reproducción" aria-label="Velocidad de reproducción">
+        <option value="1">1×</option>
+        <option value="10">10×</option>
+        <option value="100" selected>100×</option>
+        <option value="1000">1000×</option>
+      </select>
+      <span id="timeline-met-display" class="timeline-met">T+ 000:00:00:00</span>
+    </div>
+  </div>
+
+  <!-- Three.js + OrbitControls via CDN -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <!-- Módulos de la aplicación -->
+  <script type="module" src="/js/app.js"></script>
+
+</body>
+</html>
