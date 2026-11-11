@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { generateTrajectory, getTrajectoryAtMET } from '../src/lib/trajectory.js';
-import { distance3D, EARTH_RADIUS_UNITS, MOON_RADIUS_UNITS, EARTH_MOON_DISTANCE } from '../src/lib/orbital-math.js';
+import { distance3D, moonPositionAtMET, EARTH_RADIUS_UNITS, MOON_RADIUS_UNITS, EARTH_MOON_DISTANCE } from '../src/lib/orbital-math.js';
 import { MISSION_EVENTS } from '../src/data/events.js';
 
 function eventMET(id: string): number {
@@ -189,5 +189,28 @@ describe('Sincronía entre la trayectoria y los eventos', () => {
     trajectory.forEach((pt, i) => {
       expect(pt.dist_earth, `Punto ${i} (MET ${pt.met})`).toBeGreaterThanOrEqual(EARTH_RADIUS_UNITS - 0.01);
     });
+  });
+});
+
+describe('Trayectoria respecto a la Luna en su órbita', () => {
+  it('dist_moon es la distancia a la Luna en su posición orbital de ese MET', () => {
+    trajectory.forEach((pt, i) => {
+      const moon = moonPositionAtMET(pt.met);
+      const real = distance3D(pt.x, pt.y, pt.z, moon.x, moon.y, moon.z);
+      expect(Math.abs(real - pt.dist_moon), `Punto ${i} (MET ${pt.met})`).toBeLessThan(0.01);
+    });
+  });
+
+  it('en la máxima aproximación Orion está junto a la Luna que muestra la escena', () => {
+    const closest = trajectory.reduce((a, b) => (b.dist_moon < a.dist_moon ? b : a));
+    const moon = moonPositionAtMET(closest.met);
+    expect(distance3D(closest.x, closest.y, closest.z, moon.x, moon.y, moon.z)).toBeLessThan(10);
+  });
+
+  it('la telemetría interpolada también sigue a la Luna en el sobrevuelo', () => {
+    const met = eventMET('closest-approach');
+    const pt = getTrajectoryAtMET(trajectory, met);
+    const moon = moonPositionAtMET(met);
+    expect(distance3D(pt.x, pt.y, pt.z, moon.x, moon.y, moon.z)).toBeLessThan(15);
   });
 });
