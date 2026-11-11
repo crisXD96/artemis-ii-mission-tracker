@@ -20,7 +20,7 @@ clave y un diálogo recreado de la tripulación.
 | npm | el que trae Node |
 | Navegador | uno con soporte de WebGL y `importmap` (Chrome, Edge, Firefox o Safari recientes) |
 
-El navegador necesita internet: Three.js, Chart.js y las fuentes se cargan desde CDN.
+El navegador necesita internet: Three.js y las fuentes se cargan desde CDN.
 
 ## Cómo ejecutarlo
 
