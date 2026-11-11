@@ -628,7 +628,8 @@ function setCameraPreset(mode: CameraMode) {
   } else if (mode === 'follow') {
     cameraTarget = 'follow';
   } else if (mode === 'overview') {
-    animateCameraTo(new THREE.Vector3(200, 150, 400), new THREE.Vector3(0, 0, 0));
+    // Encuadra la trayectoria completa: va de la Tierra hacia +Z siguiendo a la Luna en su órbita
+    animateCameraTo(new THREE.Vector3(330, 480, 150), new THREE.Vector3(70, 0, 190));
   } else if (mode === 'earthrise') {
     // Behind the Moon, looking back at Earth
     if (!moonRef) return;

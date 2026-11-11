@@ -20,7 +20,7 @@ Todos los puntos de la trayectoria, ordenados por MET (577 puntos).
     "x": 0, "y": 0, "z": 6.371,
     "dist_earth": 6.371,
     "dist_moon": 384.453,
-    "velocity": 22695,
+    "velocity": 22674,
     "phase": "LANZAMIENTO"
   }
 ]
@@ -29,9 +29,9 @@ Todos los puntos de la trayectoria, ordenados por MET (577 puntos).
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `met` | number | Segundos desde el lanzamiento |
-| `x`, `y`, `z` | number | Posición de Orion (miles de km, origen en la Tierra) |
+| `x`, `y`, `z` | number | Posición de Orion en el marco de la escena (miles de km, origen en la Tierra), donde la Luna orbita según `moonPositionAtMET` |
 | `dist_earth` | number | Distancia al centro de la Tierra (miles de km) |
-| `dist_moon` | number | Distancia al centro de la Luna fija en `(384.4, 0, 0)` (miles de km) |
+| `dist_moon` | number | Distancia al centro de la Luna en su posición orbital de ese MET (miles de km) |
 | `velocity` | number | Velocidad aproximada (km/h) |
 | `phase` | string | Fase de misión |
 
@@ -97,10 +97,10 @@ Corresponde al evento de máxima aproximación a la Luna. El mínimo real de la 
 ```json
 {
   "met": 500520,
-  "x": 390.4, "y": -3.49, "z": -5.58,
+  "x": 97.276, "y": -3.49, "z": 378.128,
   "dist_earth": 390.455,
   "dist_moon": 8.906,
-  "velocity": 30439,
+  "velocity": 28096,
   "phase": "SOBREVUELO LUNAR",
   "metFormatted": "005:19:02:00"
 }

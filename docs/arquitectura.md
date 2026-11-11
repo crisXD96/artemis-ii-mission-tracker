@@ -36,15 +36,21 @@ La trayectoria se genera **una vez al arrancar** y se queda en memoria; no hay b
 
 ### Modelo de la trayectoria
 
-`generateTrajectory()` recorre 25 waypoints `[met, x, y, z]` que dibujan una figura de 8: salida
-de la Tierra, paso por detrás de la Luna y regreso. Entre cada par de waypoints interpola con un
+`generateTrajectory()` recorre 25 waypoints `[met, x, y, z]` definidos en el **marco que gira con
+la Luna** (Luna fija en `(384.4, 0, 0)`), donde el retorno libre dibuja una figura de 8: salida de
+la Tierra, paso por detrás de la Luna y regreso. Entre cada par de waypoints interpola con un
 spline Catmull-Rom, que pasa exactamente por los puntos de control y da una curva suave.
+
+Cada punto se pasa al **marco de la escena** con `fromMoonFrame()` (`src/lib/orbital-math.ts`):
+lo rota alrededor del eje Y el mismo ángulo que la Luna avanzó en su órbita a ese MET. Así el
+sobrevuelo ocurre junto a la Luna que muestra la escena, y en 3D la línea deja de ser un 8: se abre
+siguiendo la órbita lunar, como en las trayectorias reales.
 
 Para cada punto calcula:
 
 - `dist_earth`: distancia al origen (centro de la Tierra).
-- `dist_moon`: distancia a la Luna **fija** en `(384.4, 0, 0)`. La trayectoria se define con la
-  Luna quieta; su órbita solo se anima en la escena.
+- `dist_moon`: distancia a la Luna en su posición orbital de ese MET. Se mide en el marco de la
+  Luna; la rotación no cambia ninguna de las dos distancias.
 - `velocity`: diferencia finita centrada entre el punto anterior y el siguiente, en km/h.
 - `phase`: fase de misión según `getMissionPhase(met)`.
 
@@ -122,15 +128,13 @@ Flujo de `app.ts`:
 - **No es mecánica orbital real.** La trayectoria es un spline por puntos elegidos a mano para que
   se vea convincente.
 - **La velocidad sale de la geometría del spline**, no de la física, y salta en los cambios de
-  segmento: en el sobrevuelo llega a ~65.000 km/h entre la máxima aproximación y la distancia
+  segmento: en el sobrevuelo llega a ~62.000 km/h entre la máxima aproximación y la distancia
   máxima (hay 5 minutos entre los dos waypoints), y en el ascenso supera los 150.000 km/h.
-- **En la escena, el sobrevuelo no ocurre junto a la Luna.** La trayectoria se calcula con la
-  Luna fija en `(384.4, 0, 0)`, pero la escena la mueve en su órbita (~76° al día 5), así que Orion
-  rodea el punto donde estaba la Luna en T+0. La telemetría (`dist_moon`) sí es coherente con la
-  trayectoria.
+- **La vista de la Luna no la sigue.** La cámara apunta a donde está la Luna al pulsar el botón; si
+  la misión avanza, la Luna se mueve en su órbita y sale del centro de la vista.
 - **La máxima aproximación del spline cae ~5 minutos antes que el evento** (`005:18:56:45`), porque
   la curva se dobla hacia la Luna antes de pasar por el waypoint.
-- **La distancia máxima a la Tierra es ~393.000 km**, no los 406.732 km del evento: con la Luna fija
+- **La distancia máxima a la Tierra es ~393.000 km**, no los 406.732 km del evento: con la Luna
   a 384.400 km y el sobrevuelo a 6.545 km de altitud, la trayectoria no puede alejarse más sin
   perder la máxima aproximación.
 - **Dependencia de CDN.** Sin internet el navegador no carga Three.js y la escena no aparece.

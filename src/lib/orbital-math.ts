@@ -133,13 +133,24 @@ export function interpolateAtMET(
  * At T+0, Moon is positioned at angle 0 (along +X axis).
  */
 export function moonPositionAtMET(met: number): { x: number; y: number; z: number } {
+  return fromMoonFrame(EARTH_MOON_DISTANCE, 0, 0, met);
+}
+
+function moonOrbitAngle(met: number): number {
   const MOON_PERIOD_SECONDS = 27.3 * 86400;
-  const angle = (met / MOON_PERIOD_SECONDS) * 2 * Math.PI;
-  return {
-    x: EARTH_MOON_DISTANCE * Math.cos(angle),
-    y: 0,
-    z: EARTH_MOON_DISTANCE * Math.sin(angle),
-  };
+  return (met / MOON_PERIOD_SECONDS) * 2 * Math.PI;
+}
+
+/**
+ * Pasa un punto del marco que gira con la Luna (Luna fija en +X) al marco de la escena, donde la
+ * Luna orbita según moonPositionAtMET. Rota alrededor del eje Y, así que conserva las distancias
+ * a la Tierra y a la Luna.
+ */
+export function fromMoonFrame(x: number, y: number, z: number, met: number): { x: number; y: number; z: number } {
+  const angle = moonOrbitAngle(met);
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return { x: x * c - z * s, y, z: x * s + z * c };
 }
 
 /**

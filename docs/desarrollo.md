@@ -83,7 +83,8 @@ el cliente desde `dist/public/`, así que en el despliegue hacen falta `dist/`, 
 ## Cambiar la trayectoria
 
 Los puntos de control están en `WAYPOINTS` (`src/lib/trajectory.ts`), cada uno como
-`[met_segundos, x, y, z]` en miles de km. Reglas:
+`[met_segundos, x, y, z]` en miles de km, **en el marco que gira con la Luna** (Luna fija en
+`(384.4, 0, 0)`). El generador los rota al marco de la escena. Reglas:
 
 - El MET debe ser creciente.
 - El primer y el último punto deben quedar sobre la superficie terrestre (a `EARTH_RADIUS_UNITS`
@@ -91,15 +92,18 @@ Los puntos de control están en `WAYPOINTS` (`src/lib/trajectory.ts`), cada uno 
 - Los MET de los waypoints del sobrevuelo, de la separación del SM y de la reentrada deben
   coincidir con los de sus eventos en `src/data/events.ts`.
 - Corre `npm test`: `tests/trajectory.test.ts` valida que el MET sea creciente, que la trayectoria
-  empiece y termine en la Tierra sin cruzarla, y que la máxima aproximación a la Luna (~6.545 km) y
-  la distancia máxima a la Tierra caigan en el MET de sus eventos.
+  empiece y termine en la Tierra sin cruzarla, que la máxima aproximación a la Luna (~6.545 km) y
+  la distancia máxima a la Tierra caigan en el MET de sus eventos, y que el sobrevuelo ocurra junto
+  a la Luna en su posición orbital.
 
 ## Cargar datos reales de la NASA
 
 Cuando la NASA publique las efemérides reales de Artemis II:
 
 1. Reemplaza `WAYPOINTS` en `src/lib/trajectory.ts` con los datos reales. Pasa de km a unidades de
-   escena dividiendo entre 1.000.
+   escena dividiendo entre 1.000. Las efemérides suelen venir en un marco inercial centrado en la
+   Tierra, no en el que gira con la Luna: en ese caso no hay que rotarlas con `fromMoonFrame()`, y
+   la posición de la Luna también debe salir de los datos reales en lugar de `moonPositionAtMET`.
 2. Actualiza los MET de `src/data/events.ts` con los tiempos reales de la misión.
 3. Agrega texturas reales en `src/client/app.ts`: NASA Blue Marble (2048×1024) para la Tierra y el
    mosaico global LRO WAC para la Luna, desde https://visibleearth.nasa.gov/.

@@ -7,6 +7,7 @@ import {
   findClosestIndex,
   interpolateAtMET,
   moonPositionAtMET,
+  fromMoonFrame,
   getMissionPhase,
   EARTH_RADIUS_UNITS,
   MOON_RADIUS_UNITS,
@@ -142,6 +143,33 @@ describe('moonPositionAtMET', () => {
       const dist = distance3D(0, 0, 0, pos.x, pos.y, pos.z);
       expect(dist).toBeCloseTo(EARTH_MOON_DISTANCE, 1);
     });
+  });
+});
+
+describe('fromMoonFrame', () => {
+  it('no cambia el punto en T+0', () => {
+    const p = fromMoonFrame(100, 5, -20, 0);
+    expect(p.x).toBeCloseTo(100, 6);
+    expect(p.y).toBe(5);
+    expect(p.z).toBeCloseTo(-20, 6);
+  });
+
+  it('lleva la posición fija de la Luna a su posición orbital de ese MET', () => {
+    const met = 5 * 86400;
+    const p = fromMoonFrame(EARTH_MOON_DISTANCE, 0, 0, met);
+    const moon = moonPositionAtMET(met);
+    expect(p.x).toBeCloseTo(moon.x, 6);
+    expect(p.z).toBeCloseTo(moon.z, 6);
+  });
+
+  it('conserva la distancia a la Tierra y a la Luna', () => {
+    const met = 3 * 86400;
+    const local = [390, -3, -5] as const;
+    const p = fromMoonFrame(...local, met);
+    const moon = moonPositionAtMET(met);
+    expect(distance3D(p.x, p.y, p.z, 0, 0, 0)).toBeCloseTo(distance3D(...local, 0, 0, 0), 6);
+    expect(distance3D(p.x, p.y, p.z, moon.x, moon.y, moon.z))
+      .toBeCloseTo(distance3D(...local, EARTH_MOON_DISTANCE, 0, 0), 6);
   });
 });
 
