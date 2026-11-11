@@ -38,11 +38,15 @@ const WAYPOINTS: Array<[number, number, number, number]> = [
   [410400,     365,    -2,    40],                   // T+4d18h: Lunar sphere entry
   [460800,     378,    -8,    12],                   // T+5d8h: Near Moon approach
   // Lunar flyby - behind the Moon (far side from Earth)
-  [477180,     386,    -10,   0],                    // T+5d18.5h: Loss of signal
-  [478020,     391.5,  -8,    -4],                   // T+5d19h: Closest approach
-  [478440,     393,    -5,    -8],                   // T+5d19h7min: Max distance
-  [479100,     391,    0,     -12],                  // T+5d19.4h: AOS + Earthrise angle
-  [480000,     388,    5,     -15],                  // T+5d21h: Solar eclipse/return start
+  // Los MET coinciden con los eventos de src/data/events.ts
+  [499440,     386,    -10,   0],                    // T+5d18h44m: Loss of signal
+  // Del lado de la Luna más cercano al siguiente waypoint (solo hay 5 min hasta la distancia
+  // máxima). Queda a ~7.160 km de altitud porque el spline se curva hacia la Luna justo antes:
+  // el mínimo real de la trayectoria cae en ~6.590 km, como el evento.
+  [500520,     390.4,  -3.49, -5.58],                // T+5d19h02m: Closest approach
+  [500820,     393,    -5,    -8],                   // T+5d19h07m: Max distance
+  [501900,     391,    0,     -12],                  // T+5d19h25m: AOS + Earthrise angle
+  [506100,     388,    5,     -15],                  // T+5d20h35m: Solar eclipse/return start
   // Return coast - curving back toward Earth
   [525600,     360,    8,     -30],                  // T+6d2h: Exiting lunar influence
   [561600,     310,    5,     -50],                  // T+6d12h: Return coast day 6
@@ -50,9 +54,10 @@ const WAYPOINTS: Array<[number, number, number, number]> = [
   [734400,     135,    0,     -55],                  // T+8d12h: Inbound day 8
   [777600,     60,     -3,    -30],                  // T+9d: Final approach
   // Reentry
-  [795600,     5,      0,     -12],                  // T+9d6h: SM separation
-  [797400,     1,      0,     -8],                   // T+9d6.5h: Reentry interface
-  [803400,     0,      0,     EARTH_RADIUS_UNITS],   // T+9d7h10m: Splashdown
+  [799200,     5,      0,     -12],                  // T+9d6h: SM separation
+  [801000,     1,      0,     -8],                   // T+9d6.5h: Reentry interface
+  // Amerizaje del lado por el que llega Orion: si quedara en +Z, el último tramo cruzaría la Tierra
+  [803400,     0.5,    0,     -6.351],               // T+9d7h10m: Splashdown
 ];
 
 /**

@@ -1,6 +1,15 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { generateTrajectory, getTrajectoryAtMET } from '../src/lib/trajectory.js';
 import { distance3D, EARTH_RADIUS_UNITS, MOON_RADIUS_UNITS, EARTH_MOON_DISTANCE } from '../src/lib/orbital-math.js';
+import { MISSION_EVENTS } from '../src/data/events.js';
+
+function eventMET(id: string): number {
+  const ev = MISSION_EVENTS.find(e => e.id === id);
+  if (!ev) throw new Error(`No existe el evento ${id}`);
+  return ev.met;
+}
+
+const DIEZ_MINUTOS = 600;
 
 let trajectory: ReturnType<typeof generateTrajectory>;
 
@@ -148,5 +157,37 @@ describe('Waypoints clave de la trayectoria', () => {
     const pt = getTrajectoryAtMET(trajectory, maxDistMET);
     // Debe estar lejos de la Tierra y razonablemente cerca de la Luna
     expect(pt.dist_earth).toBeGreaterThan(200);
+  });
+});
+
+describe('Sincronía entre la trayectoria y los eventos', () => {
+  it('la distancia mínima a la Luna ocurre en el MET del evento de máxima aproximación', () => {
+    const closest = trajectory.reduce((a, b) => (b.dist_moon < a.dist_moon ? b : a));
+    expect(Math.abs(closest.met - eventMET('closest-approach'))).toBeLessThanOrEqual(DIEZ_MINUTOS);
+  });
+
+  it('la máxima aproximación queda a unos 6.545 km sobre la superficie lunar', () => {
+    const minDist = Math.min(...trajectory.map(pt => pt.dist_moon));
+    const altitudKm = (minDist - MOON_RADIUS_UNITS) * 1000;
+    expect(altitudKm).toBeGreaterThan(6045);
+    expect(altitudKm).toBeLessThan(7045);
+  });
+
+  it('la distancia máxima a la Tierra ocurre en el MET del evento de distancia máxima', () => {
+    const farthest = trajectory.reduce((a, b) => (b.dist_earth > a.dist_earth ? b : a));
+    expect(Math.abs(farthest.met - eventMET('max-distance'))).toBeLessThanOrEqual(DIEZ_MINUTOS);
+  });
+
+  it('Orion sigue fuera de la Tierra en la separación del módulo de servicio y en la reentrada', () => {
+    for (const id of ['sm-sep', 'reentry']) {
+      const pt = getTrajectoryAtMET(trajectory, eventMET(id));
+      expect(pt.dist_earth, id).toBeGreaterThan(EARTH_RADIUS_UNITS);
+    }
+  });
+
+  it('ningún punto de la trayectoria queda dentro de la Tierra', () => {
+    trajectory.forEach((pt, i) => {
+      expect(pt.dist_earth, `Punto ${i} (MET ${pt.met})`).toBeGreaterThanOrEqual(EARTH_RADIUS_UNITS - 0.01);
+    });
   });
 });

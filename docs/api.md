@@ -88,18 +88,21 @@ Telemetría interpolada en un MET dado (segundos, admite decimales). Fuera del r
 devuelve el primer o el último punto.
 
 ```
-GET /api/telemetry/478020
+GET /api/telemetry/500520
 ```
+
+Corresponde al evento de máxima aproximación a la Luna. El mínimo real de la trayectoria
+(`dist_moon` 8,33, unos 6.590 km sobre la superficie) cae 5 minutos antes, en `005:18:56:45`.
 
 ```json
 {
-  "met": 478020,
-  "x": 391.5, "y": -8, "z": -4,
-  "dist_earth": 391.602,
-  "dist_moon": 11.420,
-  "velocity": 33338,
-  "phase": "OBSERVACIÓN LUNAR",
-  "metFormatted": "005:12:47:00"
+  "met": 500520,
+  "x": 390.4, "y": -3.49, "z": -5.58,
+  "dist_earth": 390.455,
+  "dist_moon": 8.906,
+  "velocity": 30439,
+  "phase": "SOBREVUELO LUNAR",
+  "metFormatted": "005:19:02:00"
 }
 ```
 
