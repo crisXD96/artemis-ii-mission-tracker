@@ -5,9 +5,8 @@ El proyecto tiene dos partes que se comunican solo por HTTP:
 - **Backend** (`src/`): un servidor Express en TypeScript que genera la trayectoria, guarda los
   datos de la misión y los expone como JSON en `/api/*`. También sirve los archivos de `public/`.
 - **Frontend**: el HTML y el CSS viven en `public/`; el código del navegador está en TypeScript en
-  `src/client/` y se compila a `dist/public/`. Carga Three.js y Chart.js desde CDN (Three con un
-  `importmap`), pide los datos a la API al arrancar y hace toda la simulación visual en el
-  navegador.
+  `src/client/` y se compila a `dist/public/`. Carga Three.js desde CDN con un `importmap`, pide
+  los datos a la API al arrancar y hace toda la simulación visual en el navegador.
 
 ```
 Navegador                                  Servidor (Express)
