@@ -4,14 +4,20 @@
  * Las llaves son los `id` de los eventos de /api/events.
  */
 
+import type { MissionEvent } from '../types.js';
+
 export const SPEAKERS = {
   wiseman: 'Wiseman',
   glover: 'Glover',
   koch: 'Koch',
   hansen: 'Hansen',
-};
+} as const;
 
-export const CREW_DIALOGUE = {
+export type Speaker = keyof typeof SPEAKERS;
+export type DialogueLine = [Speaker, string];
+export type CrewDialogue = Record<string, DialogueLine[]>;
+
+export const CREW_DIALOGUE: CrewDialogue = {
   'launch': [
     ['wiseman', 'Encendido confirmado. Nos vamos, equipo.'],
     ['glover', 'Torre despejada. Qué empujón tiene este cohete.'],
@@ -136,16 +142,20 @@ const MAX_LINES = 12;
  * Reproduce el diálogo del último evento alcanzado. Avanzar sobre varios eventos de golpe
  * solo reproduce el más reciente, y un evento nuevo corta lo que quede del anterior.
  */
-export function createCrewComms(logEl, events, dialogue = CREW_DIALOGUE) {
+export function createCrewComms(
+  logEl: HTMLElement,
+  events: MissionEvent[],
+  dialogue: CrewDialogue = CREW_DIALOGUE,
+): { update: (met: number) => void } {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   let lastIdx = -2;
-  let lastMet = null;
-  let playingId = null;
-  let queue = [];
-  let timer = null;
-  let typing = null;
+  let lastMet: number | null = null;
+  let playingId: string | null = null;
+  let queue: DialogueLine[] = [];
+  let timer: number | undefined;
+  let typing: { el: HTMLElement; text: string; interval: number } | null = null;
 
-  function lastReachedIndex(met) {
+  function lastReachedIndex(met: number): number {
     let idx = -1;
     for (let i = 0; i < events.length; i++) {
       if (events[i].met <= met) idx = i; else break;
@@ -154,7 +164,7 @@ export function createCrewComms(logEl, events, dialogue = CREW_DIALOGUE) {
   }
 
   function trim() {
-    while (logEl.children.length > MAX_LINES) logEl.firstElementChild.remove();
+    while (logEl.children.length > MAX_LINES) logEl.firstElementChild?.remove();
   }
 
   function finishTyping() {
@@ -166,13 +176,13 @@ export function createCrewComms(logEl, events, dialogue = CREW_DIALOGUE) {
 
   function stop() {
     clearTimeout(timer);
-    timer = null;
+    timer = undefined;
     finishTyping();
     queue = [];
     playingId = null;
   }
 
-  function appendEventHeader(ev) {
+  function appendEventHeader(ev: MissionEvent) {
     const li = document.createElement('li');
     li.className = 'comms-event';
     li.textContent = `${ev.icon} ${ev.title}`;
@@ -219,7 +229,7 @@ export function createCrewComms(logEl, events, dialogue = CREW_DIALOGUE) {
     };
   }
 
-  function play(ev) {
+  function play(ev: MissionEvent) {
     const lines = dialogue[ev.id];
     if (!lines || ev.id === playingId) return;
     stop();
@@ -231,7 +241,7 @@ export function createCrewComms(logEl, events, dialogue = CREW_DIALOGUE) {
     }, START_DELAY);
   }
 
-  function update(met) {
+  function update(met: number) {
     const idx = lastReachedIndex(met);
     if (idx !== lastIdx) {
       const jumpedToEvent = idx >= 0 && met === events[idx].met && met !== lastMet;

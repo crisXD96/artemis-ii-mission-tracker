@@ -18,6 +18,8 @@ app.use(express.json());
 
 // Serve static files from /public
 app.use(express.static(join(__dirname, '..', 'public')));
+// El cliente TypeScript se compila a dist/public (ver tsconfig.client.json)
+app.use('/js', express.static(join(__dirname, '..', 'dist', 'public')));
 
 // API routes
 app.use('/api/trajectory', trajectoryRouter);
