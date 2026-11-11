@@ -6,6 +6,23 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { createCrewComms } from './crew-dialogue.js';
+import type { TrajectoryPoint, MissionEvent, CrewMember } from '../types.js';
+
+type CameraMode = 'earth' | 'moon' | 'follow' | 'overview' | 'earthrise';
+type TrajectorySample = Omit<TrajectoryPoint, 'met'>;
+
+// Falla con un mensaje claro si index.html y este archivo dejan de coincidir
+function byId<T extends HTMLElement = HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Falta el elemento #${id} en index.html`);
+  return el as T;
+}
+
+function get2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('El navegador no soporta canvas 2D');
+  return ctx;
+}
 
 // ——— Constants ———
 const TOTAL_MET = 803400;    // segundos (9d 7h 10m — amerizaje)
@@ -15,32 +32,32 @@ const EARTH_MOON_DIST = 384.4;
 const SCALE_FACTOR = 1;      // visual scale
 
 // ——— State ———
-let trajectory = [];
-let events = [];
-let crew = [];
+let trajectory: TrajectoryPoint[] = [];
+let events: MissionEvent[] = [];
+let crew: CrewMember[] = [];
 let currentMET = 0;
 let isPlaying = false;
 let playSpeed = 100;
-let lastTimestamp = null;
+let lastTimestamp: number | null = null;
 let orionPosition = new THREE.Vector3(0, 0, EARTH_R);
 
 // ——— Cached DOM ———
-const hudMet = document.getElementById('hud-met');
-const hudDistEarth = document.getElementById('hud-dist-earth');
-const hudDistMoon = document.getElementById('hud-dist-moon');
-const hudVelocity = document.getElementById('hud-velocity');
-const hudPhase = document.getElementById('hud-phase');
-const timelineSlider = document.getElementById('timeline-slider');
-const timelineMetDisplay = document.getElementById('timeline-met-display');
-const eventsList = document.getElementById('events-list');
-const speedSelect = document.getElementById('speed-select');
-const btnPlayPause = document.getElementById('btn-playpause');
-const crewTooltip = document.getElementById('crew-tooltip');
-const crewListEl = document.getElementById('crew-list');
+const hudMet = byId('hud-met');
+const hudDistEarth = byId('hud-dist-earth');
+const hudDistMoon = byId('hud-dist-moon');
+const hudVelocity = byId('hud-velocity');
+const hudPhase = byId('hud-phase');
+const timelineSlider = byId<HTMLInputElement>('timeline-slider');
+const timelineMetDisplay = byId('timeline-met-display');
+const eventsList = byId('events-list');
+const speedSelect = byId<HTMLSelectElement>('speed-select');
+const btnPlayPause = byId<HTMLButtonElement>('btn-playpause');
+const crewTooltip = byId('crew-tooltip');
+const crewListEl = byId('crew-list');
 
 // ——— THREE.js setup ———
 const renderer = new THREE.WebGLRenderer({
-  canvas: document.getElementById('space-canvas'),
+  canvas: byId<HTMLCanvasElement>('space-canvas'),
   antialias: true,
   alpha: false,
 });
@@ -97,14 +114,14 @@ function createEarth() {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 512;
-  const ctx = canvas.getContext('2d');
+  const ctx = get2d(canvas);
 
   // Base ocean blue
   ctx.fillStyle = '#1a4f8a';
   ctx.fillRect(0, 0, 1024, 512);
 
   // Simplified continent shapes
-  const drawContinent = (path, color) => {
+  const drawContinent = (path: Array<[number, number]>, color: string) => {
     ctx.fillStyle = color;
     ctx.beginPath();
     path.forEach(([x, y], i) => i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y));
@@ -219,7 +236,7 @@ function createMoon() {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 256;
-  const ctx = canvas.getContext('2d');
+  const ctx = get2d(canvas);
 
   ctx.fillStyle = '#8a8a8a';
   ctx.fillRect(0, 0, 512, 256);
@@ -330,7 +347,7 @@ function makeGlowTexture() {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
+  const ctx = get2d(canvas);
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
   g.addColorStop(0, 'rgba(255,255,255,1)');
   g.addColorStop(0.25, 'rgba(255,242,204,0.85)');
@@ -341,7 +358,7 @@ function makeGlowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 
-function createMeteorImpact(moon) {
+function createMeteorImpact(moon: THREE.Mesh) {
   const ev = events.find(e => e.id === 'meteor-impact');
   if (!ev || !moon) return null;
 
@@ -399,9 +416,11 @@ function createMeteorImpact(moon) {
   return {
     met: ev.met,
     meteor, trail, flash, flashLight, crater, craterFloor,
-    localNormal: null,
+    localNormal: null as THREE.Vector3 | null,
   };
 }
+
+type ImpactFx = NonNullable<ReturnType<typeof createMeteorImpact>>;
 
 const _impactTmp = {
   normal: new THREE.Vector3(),
@@ -412,7 +431,7 @@ const _impactTmp = {
   zAxis: new THREE.Vector3(0, 0, 1),
 };
 
-function updateMeteorImpact(fx, met) {
+function updateMeteorImpact(fx: ImpactFx | null | undefined, met: number) {
   if (!fx || !moonRef) return;
   const start = fx.met - IMPACT_APPROACH;
 
@@ -534,7 +553,7 @@ function createOrion() {
 }
 
 // ——— TRAJECTORY LINE ———
-function createTrajectoryLine(trajectoryData) {
+function createTrajectoryLine(trajectoryData: TrajectoryPoint[]) {
   const points = trajectoryData.map(p => new THREE.Vector3(p.x, p.y, p.z));
 
   // Full trajectory (dim)
@@ -565,7 +584,9 @@ function createTrajectoryLine(trajectoryData) {
 }
 
 // Update trajectory rendering based on current MET
-function updateTrajectoryLines(lines, trajectoryData, met) {
+type TrajectoryLines = ReturnType<typeof createTrajectoryLine>;
+
+function updateTrajectoryLines(lines: TrajectoryLines, trajectoryData: TrajectoryPoint[], met: number) {
   const totalMet = trajectoryData[trajectoryData.length - 1].met;
   const progress = met / totalMet;
   const totalPoints = lines.points.length;
@@ -585,10 +606,10 @@ function updateTrajectoryLines(lines, trajectoryData, met) {
 }
 
 // ——— CAMERA PRESETS ———
-let cameraTarget = null;
-let cameraMode = 'overview';
+let cameraTarget: 'follow' | null = null;
+let cameraMode: CameraMode = 'overview';
 
-function setCameraPreset(mode) {
+function setCameraPreset(mode: CameraMode) {
   cameraMode = mode;
   document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`[data-cam="${mode}"]`)?.classList.add('active');
@@ -598,6 +619,7 @@ function setCameraPreset(mode) {
     // Look at Earth from a medium distance
     animateCameraTo(new THREE.Vector3(0, 30, 80), new THREE.Vector3(0, 0, 0));
   } else if (mode === 'moon') {
+    if (!moonRef) return;
     const moonPos = moonRef.position;
     animateCameraTo(
       new THREE.Vector3(moonPos.x - 20, moonPos.y + 15, moonPos.z + 30),
@@ -609,6 +631,7 @@ function setCameraPreset(mode) {
     animateCameraTo(new THREE.Vector3(200, 150, 400), new THREE.Vector3(0, 0, 0));
   } else if (mode === 'earthrise') {
     // Behind the Moon, looking back at Earth
+    if (!moonRef) return;
     const moonPos = moonRef.position;
     animateCameraTo(
       new THREE.Vector3(moonPos.x + 15, moonPos.y + 5, moonPos.z + 8),
@@ -618,9 +641,13 @@ function setCameraPreset(mode) {
 }
 
 let camAnimating = false;
-let camAnimStart, camAnimEnd, camLookStart, camLookEnd, camAnimT = 0;
+let camAnimStart = new THREE.Vector3();
+let camAnimEnd = new THREE.Vector3();
+let camLookStart = new THREE.Vector3();
+let camLookEnd = new THREE.Vector3();
+let camAnimT = 0;
 
-function animateCameraTo(targetPos, lookAt) {
+function animateCameraTo(targetPos: THREE.Vector3, lookAt: THREE.Vector3) {
   camAnimating = true;
   camAnimT = 0;
   camAnimStart = camera.position.clone();
@@ -629,7 +656,7 @@ function animateCameraTo(targetPos, lookAt) {
   camLookEnd = lookAt;
 }
 
-function tickCameraAnimation(dt) {
+function tickCameraAnimation(dt: number) {
   if (!camAnimating) return;
   camAnimT = Math.min(camAnimT + dt * 1.2, 1);
   const ease = 1 - Math.pow(1 - camAnimT, 3);
@@ -639,8 +666,10 @@ function tickCameraAnimation(dt) {
 }
 
 // ——— Utility: interpolate trajectory at MET ———
-function getPositionAtMET(met) {
-  if (!trajectory.length) return { x: 0, y: 0, z: EARTH_R };
+function getPositionAtMET(met: number): TrajectorySample {
+  if (!trajectory.length) {
+    return { x: 0, y: 0, z: EARTH_R, dist_earth: NaN, dist_moon: NaN, velocity: NaN, phase: '' };
+  }
   const last = trajectory[trajectory.length - 1];
   if (met <= trajectory[0].met) return trajectory[0];
   if (met >= last.met) return last;
@@ -664,7 +693,7 @@ function getPositionAtMET(met) {
   };
 }
 
-function formatMET(seconds) {
+function formatMET(seconds: number): string {
   const s = Math.floor(Math.abs(seconds));
   const d = Math.floor(s / 86400);
   const h = Math.floor((s % 86400) / 3600);
@@ -673,12 +702,12 @@ function formatMET(seconds) {
   return `T+ ${String(d).padStart(3,'0')}:${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
 }
 
-function formatNum(n, decimals = 0) {
+function formatNum(n: number, decimals = 0): string {
   return Math.round(n).toLocaleString('en-US');
 }
 
 // ——— Moon position (visual orbit) ———
-function getMoonOrbitPosition(met) {
+function getMoonOrbitPosition(met: number): THREE.Vector3 {
   const PERIOD = 27.3 * 86400;
   const angle = (met / PERIOD) * Math.PI * 2;
   return new THREE.Vector3(
@@ -689,7 +718,7 @@ function getMoonOrbitPosition(met) {
 }
 
 // ——— Update HUD ———
-function updateHUD(point) {
+function updateHUD(point: TrajectorySample) {
   if (!point) return;
   hudMet.textContent = formatMET(currentMET);
   hudDistEarth.textContent = `${formatNum(point.dist_earth * 1000)} km`;
@@ -702,7 +731,7 @@ function updateHUD(point) {
   // Update slider progress gradient
   const pct = (currentMET / TOTAL_MET) * 100;
   timelineSlider.style.setProperty('--progress', `${pct}%`);
-  timelineSlider.value = currentMET;
+  timelineSlider.value = String(currentMET);
 }
 
 // ——— Events panel ———
@@ -711,7 +740,7 @@ function buildEventsPanel() {
   events.forEach(ev => {
     const div = document.createElement('div');
     div.className = 'event-item';
-    div.dataset.met = ev.met;
+    div.dataset.met = String(ev.met);
     div.innerHTML = `
       <div class="event-header">
         <span class="event-icon">${ev.icon}</span>
@@ -729,7 +758,7 @@ function buildEventsPanel() {
   });
 }
 
-function updateEventsHighlight(met) {
+function updateEventsHighlight(met: number) {
   let closestIdx = 0;
   let closestDist = Infinity;
   events.forEach((ev, i) => {
@@ -751,7 +780,7 @@ function updateEventsHighlight(met) {
     marker.classList.toggle('past', events[i].met <= met);
   });
 
-  document.querySelectorAll('.phase-band').forEach(band => {
+  document.querySelectorAll<HTMLElement>('.phase-band').forEach(band => {
     const start = Number(band.dataset.start);
     const end = Number(band.dataset.end);
     band.classList.toggle('current', met >= start && met < end);
@@ -768,7 +797,7 @@ const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)
 
 // Las fases finas de los eventos se agrupan en tramos legibles en la tira de la línea de tiempo;
 // la fase exacta sigue visible en el HUD.
-const PHASE_GROUPS = {
+const PHASE_GROUPS: Record<string, string> = {
   'LANZAMIENTO': 'Órbita terrestre',
   'ASCENSO': 'Órbita terrestre',
   'ÓRBITA DE ESTACIONAMIENTO': 'Órbita terrestre',
@@ -785,9 +814,9 @@ const PHASE_GROUPS = {
 };
 
 function buildPhaseBands() {
-  const container = document.getElementById('timeline-phases');
+  const container = byId('timeline-phases');
   container.innerHTML = '';
-  const bands = [];
+  const bands: Array<{ name: string; start: number; end: number }> = [];
   events.forEach(ev => {
     const name = PHASE_GROUPS[ev.phase] || ev.phase;
     const last = bands[bands.length - 1];
@@ -805,8 +834,8 @@ function buildPhaseBands() {
     if (width < 18) el.classList.add('mobile-narrow');
     el.style.left = `${left}%`;
     el.style.width = `${width}%`;
-    el.dataset.start = band.start;
-    el.dataset.end = band.end;
+    el.dataset.start = String(band.start);
+    el.dataset.end = String(band.end);
     el.title = band.name;
     el.textContent = band.name;
     container.appendChild(el);
@@ -814,7 +843,7 @@ function buildPhaseBands() {
 }
 
 function buildDayTicks() {
-  const container = document.getElementById('timeline-days');
+  const container = byId('timeline-days');
   container.innerHTML = '';
   const days = Math.floor(TOTAL_MET / 86400);
   for (let d = 0; d <= days; d++) {
@@ -831,7 +860,7 @@ function buildTimelineMarkers() {
   buildPhaseBands();
   buildDayTicks();
 
-  const container = document.getElementById('timeline-events-markers');
+  const container = byId('timeline-events-markers');
   container.innerHTML = '';
   events.forEach(ev => {
     const pct = (ev.met / TOTAL_MET) * 100;
@@ -877,7 +906,7 @@ function buildCrewTooltip() {
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 
-function onCanvasClick(event) {
+function onCanvasClick(event: MouseEvent) {
   if (event.target !== renderer.domElement) return;
   pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
   pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -895,7 +924,13 @@ function onCanvasClick(event) {
 document.addEventListener('click', onCanvasClick);
 
 // ——— Scene objects (set after init) ———
-let earthRef, moonRef, orionRef, trajectoryLines, starsRef, impactFx, crewComms;
+let earthRef: THREE.Mesh | undefined;
+let moonRef: THREE.Mesh | undefined;
+let orionRef: THREE.Group | undefined;
+let trajectoryLines: TrajectoryLines | undefined;
+let starsRef: THREE.Points | undefined;
+let impactFx: ImpactFx | null | undefined;
+let crewComms: ReturnType<typeof createCrewComms> | undefined;
 
 // ——— MAIN INIT ———
 async function init() {
@@ -909,8 +944,8 @@ async function init() {
   `;
   document.body.appendChild(loading);
 
-  const loadBar = document.getElementById('load-bar');
-  const setProgress = p => { loadBar.style.width = `${p}%`; };
+  const loadBar = byId('load-bar');
+  const setProgress = (p: number) => { loadBar.style.width = `${p}%`; };
 
   try {
     // Fetch data
@@ -921,9 +956,9 @@ async function init() {
       fetch('/api/crew'),
     ]);
 
-    trajectory = await trajRes.json();
-    events = await eventsRes.json();
-    crew = await crewRes.json();
+    trajectory = await trajRes.json() as TrajectoryPoint[];
+    events = await eventsRes.json() as MissionEvent[];
+    crew = await crewRes.json() as CrewMember[];
 
     setProgress(60);
 
@@ -942,7 +977,7 @@ async function init() {
     buildEventsPanel();
     buildTimelineMarkers();
     buildCrewTooltip();
-    crewComms = createCrewComms(document.getElementById('comms-log'), events);
+    crewComms = createCrewComms(byId('comms-log'), events);
     setupControls();
 
     // Initial camera
@@ -955,7 +990,8 @@ async function init() {
     requestAnimationFrame(animate);
 
   } catch (err) {
-    loading.innerHTML = `<div class="loading-title loading-error">No se pudieron cargar los datos de la misión</div><div class="loading-subtitle">Revisa que el servidor esté corriendo y recarga la página. Detalle: ${err.message}</div>`;
+    const detail = err instanceof Error ? err.message : String(err);
+    loading.innerHTML = `<div class="loading-title loading-error">No se pudieron cargar los datos de la misión</div><div class="loading-subtitle">Revisa que el servidor esté corriendo y recarga la página. Detalle: ${detail}</div>`;
   }
 }
 
@@ -978,12 +1014,12 @@ function setupControls() {
   });
 
   // Retroceder
-  document.getElementById('btn-rewind').addEventListener('click', () => {
+  byId('btn-rewind').addEventListener('click', () => {
     currentMET = Math.max(0, currentMET - 3600 * 12); // retroceder 12h
   });
 
   // Avanzar
-  document.getElementById('btn-forward').addEventListener('click', () => {
+  byId('btn-forward').addEventListener('click', () => {
     currentMET = Math.min(TOTAL_MET, currentMET + 3600 * 12);
   });
 
@@ -993,21 +1029,21 @@ function setupControls() {
   });
 
   // Botones de cámara
-  document.querySelectorAll('.cam-btn').forEach(btn => {
-    btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam));
+  document.querySelectorAll<HTMLElement>('.cam-btn').forEach(btn => {
+    btn.addEventListener('click', () => setCameraPreset(btn.dataset.cam as CameraMode));
   });
 
   // ——— Panel de eventos: plegar / desplegar ———
-  const eventsPanel = document.getElementById('events-panel');
-  const eventsReopenTab = document.getElementById('events-reopen-tab');
+  const eventsPanel = byId('events-panel');
+  const eventsReopenTab = byId('events-reopen-tab');
 
-  function setEventsPanelCollapsed(collapsed) {
+  function setEventsPanelCollapsed(collapsed: boolean) {
     eventsPanel.classList.toggle('collapsed', collapsed);
-    document.getElementById('events-toggle').textContent = collapsed ? '▶' : '◀';
+    byId('events-toggle').textContent = collapsed ? '▶' : '◀';
     eventsReopenTab.classList.toggle('visible', collapsed);
   }
 
-  document.getElementById('events-toggle').addEventListener('click', () => {
+  byId('events-toggle').addEventListener('click', () => {
     setEventsPanelCollapsed(!eventsPanel.classList.contains('collapsed'));
   });
 
@@ -1016,15 +1052,15 @@ function setupControls() {
   });
 
   // ——— Panel de información / ayuda ———
-  const infoPanel = document.getElementById('info-panel');
-  const infoOpenBtn = document.getElementById('info-open-btn');
+  const infoPanel = byId('info-panel');
+  const infoOpenBtn = byId('info-open-btn');
 
-  function setInfoPanelVisible(visible) {
+  function setInfoPanelVisible(visible: boolean) {
     infoPanel.classList.toggle('hidden', !visible);
     infoOpenBtn.classList.toggle('visible', !visible);
   }
 
-  document.getElementById('info-close').addEventListener('click', () => {
+  byId('info-close').addEventListener('click', () => {
     setInfoPanelVisible(false);
   });
 
@@ -1033,8 +1069,8 @@ function setupControls() {
   });
 
   // ——— Diálogo de la tripulación: plegar / desplegar ———
-  const comms = document.getElementById('comms');
-  const commsToggle = document.getElementById('comms-toggle');
+  const comms = byId('comms');
+  const commsToggle = byId('comms-toggle');
   commsToggle.addEventListener('click', () => {
     const collapsed = comms.classList.toggle('collapsed');
     const label = collapsed ? 'Mostrar diálogo' : 'Ocultar diálogo';
@@ -1061,7 +1097,7 @@ function setupControls() {
 let earthAngle = 0;
 let moonAngle = 0;
 
-function animate(timestamp) {
+function animate(timestamp: number) {
   requestAnimationFrame(animate);
 
   const dt = lastTimestamp ? Math.min((timestamp - lastTimestamp) / 1000, 0.1) : 0;
